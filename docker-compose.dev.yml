@@ -1,0 +1,24 @@
+# Development override: `make dev` (docker compose -f docker-compose.yml -f docker-compose.dev.yml).
+# The project is bind-mounted and uvicorn restarts on every change under app/.
+services:
+  api:
+    build:
+      target: dev
+    image: todo-api:dev
+    environment:
+      APP_ENV: development
+      # Inotify events do not always cross bind mounts (Docker Desktop, WSL); polling
+      # always works. Set to false on native Linux if you want to save a bit of CPU.
+      WATCHFILES_FORCE_POLLING: ${WATCHFILES_FORCE_POLLING:-true}
+    # Run as the host user so files written in the mount (coverage, caches) stay yours.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    volumes:
+      - .:/app
+    read_only: false
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 10
+    mem_limit: 1g
